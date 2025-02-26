@@ -26,15 +26,42 @@ from getopt import getopt, GetoptError
 from copy import deepcopy
 from graph import *
 
+
 def simplify(G):
     """Simplify the graph S by removing the transitively-inferrible edges.
-
-    S is just a copy of G, which is the input to the graph. 
+    
+    S is just a copy of G, which is the input graph.
     """
 
     S = deepcopy(G)
 
-    return S   
+    def has_path(u, v):
+        """Return True if there is a path from node u to node v in graph S."""
+        stack = [u]
+        visited = set()
+        while stack:
+            current = stack.pop()
+            if current == v:
+                return True
+            if current not in visited:
+                visited.add(current)
+                # Push all neighbors of current onto the stack.
+                stack.extend(list(S.edges[current].keys()))
+        return False
+
+    # Iterate over a snapshot of the current edges to avoid modifying during iteration.
+    for u in list(S.edges.keys()):
+        for v in list(S.edges[u].keys()):
+            # Temporarily remove the edge (u, v).
+            S.delete_edge(u, v)
+            # If there is still a path from u to v, the direct edge is redundant.
+            if not has_path(u, v):
+                # Otherwise, add the edge back.
+                S.add_edge(u, v)
+    return S
+
+
+   
 
 def main(filename):
     # read the graph from the input file

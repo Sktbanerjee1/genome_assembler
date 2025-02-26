@@ -1,0 +1,132 @@
+import unittest
+from remove_transitive_edges import simplify
+from graph import Graph
+
+class TestSimplifyComplex(unittest.TestCase):
+
+    def test_empty_graph(self):
+        # Test an empty graph. There are no nodes or edges.
+        edges = {}
+        G = Graph(edges)
+        simplified = simplify(G)
+        expected = Graph({})
+        self.assertEqual(simplified, expected)
+
+    def test_single_node(self):
+        # Test a graph with a single node and no edges.
+        edges = {"A": {}}
+        G = Graph(edges)
+        simplified = simplify(G)
+        expected = Graph({"A": {}})
+        self.assertEqual(simplified, expected)
+
+    def test_cycle(self):
+        # Test a cycle with no redundant edges.
+        # Graph: A -> B -> C -> A
+        edges = {"A": {"B": 1},
+                 "B": {"C": 1},
+                 "C": {"A": 1}}
+        G = Graph(edges)
+        simplified = simplify(G)
+        # None of the edges are redundant in a pure cycle.
+        expected = Graph({"A": {"B": 1},
+                          "B": {"C": 1},
+                          "C": {"A": 1}})
+        self.assertEqual(simplified, expected)
+
+    def test_diamond(self):
+        # Test a diamond-shaped graph where one edge is transitively implied.
+        # Graph: A -> B, A -> C, A -> D, B -> D, C -> D.
+        # The edge A -> D is redundant because there are paths A->B->D and A->C->D.
+        edges = {"A": {"B": 1, "C": 1, "D": 1},
+                 "B": {"D": 1},
+                 "C": {"D": 1},
+                 "D": {}}
+        G = Graph(edges)
+        simplified = simplify(G)
+        expected = Graph({"A": {"B": 1, "C": 1},
+                          "B": {"D": 1},
+                          "C": {"D": 1},
+                          "D": {}})
+        self.assertEqual(simplified, expected)
+
+    def test_complete_dag(self):
+        # Test a complete directed acyclic graph (DAG) on four nodes.
+        # Graph: A -> B, A -> C, A -> D, B -> C, B -> D, C -> D.
+        # The redundant edges (A->C, A->D, B->D) should be removed.
+        edges = {"A": {"B": 1, "C": 1, "D": 1},
+                 "B": {"C": 1, "D": 1},
+                 "C": {"D": 1},
+                 "D": {}}
+        G = Graph(edges)
+        simplified = simplify(G)
+        expected = Graph({"A": {"B": 1},
+                          "B": {"C": 1},
+                          "C": {"D": 1},
+                          "D": {}})
+        self.assertEqual(simplified, expected)
+
+    def test_disconnected(self):
+        # Test a graph with two disconnected components, each with transitive edges.
+        # Component 1: A -> B, A -> C, B -> C (A->C is redundant).
+        # Component 2: X -> Y, X -> Z, Y -> Z (X->Z is redundant).
+        edges = {"A": {"B": 1, "C": 1},
+                 "B": {"C": 1},
+                 "C": {},
+                 "X": {"Y": 1, "Z": 1},
+                 "Y": {"Z": 1},
+                 "Z": {}}
+        G = Graph(edges)
+        simplified = simplify(G)
+        expected = Graph({"A": {"B": 1},
+                          "B": {"C": 1},
+                          "C": {},
+                          "X": {"Y": 1},
+                          "Y": {"Z": 1},
+                          "Z": {}})
+        self.assertEqual(simplified, expected)
+
+    def test_cycle_with_redundant_edge(self):
+        # Test a graph that has a cycle with an extra redundant edge.
+        # Graph:
+        #   A -> B, A -> C, B ->C, B -> A, and C -> A.
+        # Here, the extra edges A -> C and B -> A are transitively implied by the cycle.
+        # Expected simplified graph: A -> B, B -> C, C -> A.
+        edges = {"A": {"B": 1, "C": 1},
+                 "B": {"C": 1, "A": 1},
+                 "C": {"A": 1}}
+        G = Graph(edges)
+        simplified = simplify(G)
+        expected = Graph({"A": {"B": 1},
+                          "B": {"C": 1},
+                          "C": {"A": 1}})
+        self.assertEqual(simplified, expected)
+
+    def test_complex_graph(self):
+        # Test a more complex graph that combines several patterns.
+        # Graph:
+        #   A -> B, A -> C, A -> E,
+        #   B -> D, B -> E,
+        #   C -> D,
+        #   D -> E,
+        #   F is an isolated node.
+        # Here, A->E is redundant because A can reach E via A->B->D->E or A->C->D->E.
+        # Also, B->E is redundant because B->D->E exists.
+        edges = {"A": {"B": 1, "C": 1, "E": 1},
+                 "B": {"D": 1, "E": 1},
+                 "C": {"D": 1},
+                 "D": {"E": 1},
+                 "E": {},
+                 "F": {}}
+        G = Graph(edges)
+        simplified = simplify(G)
+        expected = Graph({"A": {"B": 1, "C": 1},
+                          "B": {"D": 1},
+                          "C": {"D": 1},
+                          "D": {"E": 1},
+                          "E": {},
+                          "F": {}})
+        self.assertEqual(simplified, expected)
+
+if __name__ == '__main__':
+    unittest.main()
